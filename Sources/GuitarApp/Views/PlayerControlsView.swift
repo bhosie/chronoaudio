@@ -4,6 +4,7 @@ struct PlayerControlsView: View {
     @ObservedObject var playerVM: PlayerViewModel
     @Binding var bpm: Double
     @Binding var beatsPerBar: Int
+    @Binding var beatUnit: Int
     @ObservedObject var metronomeVM: MetronomeViewModel
     let onDetectBPM: () -> Void
 
@@ -104,10 +105,10 @@ struct PlayerControlsView: View {
                 Text("Time Sig")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                HStack(spacing: 4) {
-                    // Numerator picker: 2, 3, 4, 5, 6, 7, 8
+                HStack(spacing: 2) {
+                    // Numerator: how many beats per bar
                     Picker("", selection: $beatsPerBar) {
-                        ForEach([2, 3, 4, 5, 6, 7, 8], id: \.self) { n in
+                        ForEach([2, 3, 4, 5, 6, 7, 8, 9, 12], id: \.self) { n in
                             Text("\(n)").tag(n)
                         }
                     }
@@ -115,9 +116,19 @@ struct PlayerControlsView: View {
                     .frame(width: 52)
                     .labelsHidden()
 
-                    Text("/4")
+                    Text("/")
                         .font(.system(size: 14, weight: .regular, design: .monospaced))
                         .foregroundColor(.secondary)
+
+                    // Denominator: beat unit (4 = quarter note, 8 = eighth note)
+                    Picker("", selection: $beatUnit) {
+                        ForEach([4, 8], id: \.self) { d in
+                            Text("\(d)").tag(d)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 48)
+                    .labelsHidden()
                 }
             }
             .disabled(playerVM.track == nil)
@@ -185,6 +196,7 @@ struct PlayerControlsView: View {
                 metronomeVM: metronomeVM,
                 bpm: bpm,
                 beatsPerBar: beatsPerBar,
+                beatUnit: beatUnit,
                 playbackRate: playerVM.playbackState.playbackRate
             ) { value in
                 if value < 0 {

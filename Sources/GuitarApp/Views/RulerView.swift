@@ -12,8 +12,10 @@ struct RulerView: View {
     let trackDuration: TimeInterval
     /// Tempo in beats per minute (audio-file tempo, not scaled by playback rate).
     let bpm: Double
-    /// Number of beats per bar (e.g. 4 for 4/4, 3 for 3/4).
+    /// Number of beats per bar (e.g. 4 for 4/4, 6 for 6/8).
     let beatsPerBar: Int
+    /// Beat unit: 4 = quarter note, 8 = eighth note. Determines how long one beat lasts.
+    let beatUnit: Int
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { _ in
@@ -29,7 +31,10 @@ struct RulerView: View {
     // MARK: - Drawing
 
     private func drawRuler(context: GraphicsContext, size: CGSize) {
-        let secondsPerBeat = 60.0 / bpm
+        // BPM is always in quarter notes. Scale by (4 / beatUnit) so that e.g.
+        // 6/8 at 120 BPM has eighth-note beats that are 0.25s long (not 0.5s).
+        // beatUnit=4 → scale 1.0; beatUnit=8 → scale 0.5 (eighth note is half a quarter note).
+        let secondsPerBeat = 60.0 / bpm * (4.0 / Double(max(beatUnit, 1)))
         let secondsPerBar  = secondsPerBeat * Double(beatsPerBar)
         let totalBars = Int(ceil(trackDuration / secondsPerBar))
 

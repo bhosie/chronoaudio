@@ -6,6 +6,7 @@ struct MetronomePanel: View {
     @ObservedObject var metronomeVM: MetronomeViewModel
     let bpm: Double
     let beatsPerBar: Int
+    let beatUnit: Int
     let playbackRate: Float
     /// Called when BPM detection finishes and the user wants to apply the result.
     let onApplyDetectedBPM: (Double) -> Void
@@ -15,7 +16,7 @@ struct MetronomePanel: View {
 
             // Toggle button
             Button {
-                metronomeVM.toggle(bpm: bpm, beatsPerBar: beatsPerBar, playbackRate: playbackRate)
+                metronomeVM.toggle(bpm: bpm, beatsPerBar: beatsPerBar, beatUnit: beatUnit, playbackRate: playbackRate)
             } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "metronome")

@@ -28,6 +28,9 @@ final class MetronomeEngine {
 
     private var beatIndex: Int = 0
     var beatsPerBar: Int = 4
+    /// The note value of one beat: 4 = quarter note (4/4, 3/4), 8 = eighth note (6/8, 3/8, 9/8).
+    /// framesPerBeat is scaled by (4 / beatUnit) so 6/8 at 120 BPM clicks twice as fast as 6/4.
+    var beatUnit: Int = 4
 
     // MARK: - Init
 
@@ -38,11 +41,12 @@ final class MetronomeEngine {
 
     // MARK: - Public API
 
-    func start(bpm: Double, beatsPerBar: Int, playbackRate: Float) {
+    func start(bpm: Double, beatsPerBar: Int, beatUnit: Int, playbackRate: Float) {
         guard engine.isRunning else { return }
 
         self.bpm = bpm
         self.beatsPerBar = beatsPerBar
+        self.beatUnit = beatUnit
         self.playbackRate = playbackRate
         self.beatIndex = 0
         self.scheduledUpToSampleTime = 0
@@ -80,9 +84,10 @@ final class MetronomeEngine {
     private func restart() {
         let savedBPM = bpm
         let savedBeats = beatsPerBar
+        let savedUnit = beatUnit
         let savedRate = playbackRate
         stop()
-        start(bpm: savedBPM, beatsPerBar: savedBeats, playbackRate: savedRate)
+        start(bpm: savedBPM, beatsPerBar: savedBeats, beatUnit: savedUnit, playbackRate: savedRate)
     }
 
     private func scheduleBeats() {
@@ -90,7 +95,11 @@ final class MetronomeEngine {
               let accentBuf = accentBuffer,
               let normalBuf = normalBuffer else { return }
 
-        let effectiveBPS = bpm / 60.0 * Double(playbackRate)
+        // BPM is always expressed in quarter notes. Scale by (beatUnit / 4) so that
+        // e.g. 6/8 at 120 BPM clicks an eighth note every 0.25s (twice per quarter note).
+        // beatUnit=4 → scale 1.0 (no change); beatUnit=8 → scale 2.0 (double the click rate).
+        let beatUnitScale = Double(max(beatUnit, 1)) / 4.0
+        let effectiveBPS = bpm / 60.0 * Double(playbackRate) * beatUnitScale
         guard effectiveBPS > 0 else { return }
         let framesPerBeat = AVAudioFramePosition(format.sampleRate / effectiveBPS)
 

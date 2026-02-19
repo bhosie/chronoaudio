@@ -15,6 +15,7 @@ final class MetronomeViewModel: ObservableObject {
     // Mirror ContentView state so we stay in sync without owning it.
     private(set) var bpm: Double = 120
     private(set) var beatsPerBar: Int = 4
+    private(set) var beatUnit: Int = 4
     private(set) var playbackRate: Float = 1.0
 
     init(audioEngine: AudioEngine) {
@@ -24,12 +25,13 @@ final class MetronomeViewModel: ObservableObject {
     // MARK: - Transport sync
 
     /// Called when playback starts — starts the click track if the metronome is on.
-    func onPlaybackStarted(bpm: Double, beatsPerBar: Int, playbackRate: Float) {
+    func onPlaybackStarted(bpm: Double, beatsPerBar: Int, beatUnit: Int, playbackRate: Float) {
         self.bpm = bpm
         self.beatsPerBar = beatsPerBar
+        self.beatUnit = beatUnit
         self.playbackRate = playbackRate
         if isRunning {
-            metronomeEngine.start(bpm: bpm, beatsPerBar: beatsPerBar, playbackRate: playbackRate)
+            metronomeEngine.start(bpm: bpm, beatsPerBar: beatsPerBar, beatUnit: beatUnit, playbackRate: playbackRate)
         }
     }
 
@@ -39,10 +41,12 @@ final class MetronomeViewModel: ObservableObject {
     }
 
     /// Called when BPM or time signature changes (while playing or not).
-    func onBPMChanged(bpm: Double, beatsPerBar: Int) {
+    func onBPMChanged(bpm: Double, beatsPerBar: Int, beatUnit: Int) {
         self.bpm = bpm
         self.beatsPerBar = beatsPerBar
+        self.beatUnit = beatUnit
         metronomeEngine.beatsPerBar = beatsPerBar
+        metronomeEngine.beatUnit = beatUnit
         metronomeEngine.updateBPM(bpm)
     }
 
@@ -54,15 +58,16 @@ final class MetronomeViewModel: ObservableObject {
 
     // MARK: - Toggle
 
-    func toggle(bpm: Double, beatsPerBar: Int, playbackRate: Float) {
+    func toggle(bpm: Double, beatsPerBar: Int, beatUnit: Int, playbackRate: Float) {
         isRunning.toggle()
         self.bpm = bpm
         self.beatsPerBar = beatsPerBar
+        self.beatUnit = beatUnit
         self.playbackRate = playbackRate
         metronomeEngine.volume = volume
 
         if isRunning {
-            metronomeEngine.start(bpm: bpm, beatsPerBar: beatsPerBar, playbackRate: playbackRate)
+            metronomeEngine.start(bpm: bpm, beatsPerBar: beatsPerBar, beatUnit: beatUnit, playbackRate: playbackRate)
         } else {
             metronomeEngine.stop()
         }

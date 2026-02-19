@@ -15,6 +15,7 @@ struct ContentView: View {
     // Ruler / metronome state — persisted to project on back
     @State private var bpm: Double = 120
     @State private var beatsPerBar: Int = 4
+    @State private var beatUnit: Int = 4
 
     // MetronomeViewModel is created after playerVM so it can share the engine
     @StateObject private var metronomeVM: MetronomeViewModel
@@ -46,7 +47,8 @@ struct ContentView: View {
                     currentTime: playerVM.playbackState.currentTime,
                     trackDuration: playerVM.track?.duration ?? 0,
                     bpm: bpm,
-                    beatsPerBar: beatsPerBar
+                    beatsPerBar: beatsPerBar,
+                    beatUnit: beatUnit
                 )
                 .padding(.horizontal, 12)
             }
@@ -64,6 +66,7 @@ struct ContentView: View {
                 playerVM: playerVM,
                 bpm: $bpm,
                 beatsPerBar: $beatsPerBar,
+                beatUnit: $beatUnit,
                 metronomeVM: metronomeVM,
                 onDetectBPM: handleDetectBPM
             )
@@ -90,6 +93,7 @@ struct ContentView: View {
                 metronomeVM.onPlaybackStarted(
                     bpm: bpm,
                     beatsPerBar: beatsPerBar,
+                    beatUnit: beatUnit,
                     playbackRate: playerVM.playbackState.playbackRate
                 )
             case .paused, .idle, .loading, .error:
@@ -97,10 +101,13 @@ struct ContentView: View {
             }
         }
         .onChange(of: bpm) { newBPM in
-            metronomeVM.onBPMChanged(bpm: newBPM, beatsPerBar: beatsPerBar)
+            metronomeVM.onBPMChanged(bpm: newBPM, beatsPerBar: beatsPerBar, beatUnit: beatUnit)
         }
         .onChange(of: beatsPerBar) { newBeats in
-            metronomeVM.onBPMChanged(bpm: bpm, beatsPerBar: newBeats)
+            metronomeVM.onBPMChanged(bpm: bpm, beatsPerBar: newBeats, beatUnit: beatUnit)
+        }
+        .onChange(of: beatUnit) { newUnit in
+            metronomeVM.onBPMChanged(bpm: bpm, beatsPerBar: beatsPerBar, beatUnit: newUnit)
         }
         .onChange(of: playerVM.playbackState.playbackRate) { newRate in
             metronomeVM.onRateChanged(newRate)
@@ -145,6 +152,7 @@ struct ContentView: View {
         }
         if let savedBPM = project.bpm { bpm = savedBPM }
         if let savedSig = project.timeSignatureNumerator { beatsPerBar = savedSig }
+        if let savedUnit = project.timeSignatureDenominator { beatUnit = savedUnit }
     }
 
     // MARK: - BPM Detection
@@ -159,7 +167,7 @@ struct ContentView: View {
 
     private func handleBack() {
         playerVM.pause()
-        let snapshot = playerVM.snapshotProject(from: project, bpm: bpm, beatsPerBar: beatsPerBar)
+        let snapshot = playerVM.snapshotProject(from: project, bpm: bpm, beatsPerBar: beatsPerBar, beatUnit: beatUnit)
         teardown()
         onBack(snapshot)
     }

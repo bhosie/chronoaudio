@@ -24,6 +24,7 @@ struct Project: Codable, Identifiable, Equatable {
     // Ruler / tempo (nil = user hasn't set one; UI shows a default)
     var bpm: Double?
     var timeSignatureNumerator: Int?
+    var timeSignatureDenominator: Int?      // beat unit: 4 = quarter note, 8 = eighth note
 
     // MARK: - Init
 
@@ -41,7 +42,8 @@ struct Project: Codable, Identifiable, Equatable {
         playbackSpeed: Float = 1.0,
         lastPlayheadPosition: TimeInterval = 0,
         bpm: Double? = nil,
-        timeSignatureNumerator: Int? = nil
+        timeSignatureNumerator: Int? = nil,
+        timeSignatureDenominator: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -57,6 +59,7 @@ struct Project: Codable, Identifiable, Equatable {
         self.lastPlayheadPosition = lastPlayheadPosition
         self.bpm = bpm
         self.timeSignatureNumerator = timeSignatureNumerator
+        self.timeSignatureDenominator = timeSignatureDenominator
     }
 
     static func == (lhs: Project, rhs: Project) -> Bool {
