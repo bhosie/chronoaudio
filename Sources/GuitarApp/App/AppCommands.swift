@@ -1,7 +1,16 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let openFileRequested = Notification.Name("com.guitarapp.openFileRequested")
+}
+
 struct AppCommands: Commands {
     var body: some Commands {
-        // File menu commands added here in Phase 5
+        CommandGroup(replacing: .newItem) {
+            Button("Open…") {
+                NotificationCenter.default.post(name: .openFileRequested, object: nil)
+            }
+            .keyboardShortcut("o", modifiers: .command)
+        }
     }
 }
