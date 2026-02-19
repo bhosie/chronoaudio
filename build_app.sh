@@ -13,6 +13,11 @@ mkdir -p GuitarApp.app/Contents/Resources
 cp .build/release/GuitarApp GuitarApp.app/Contents/MacOS/GuitarApp
 cp -r .build/release/GuitarApp_GuitarApp.bundle GuitarApp.app/Contents/Resources/
 
+# App icon
+if [ -f AppIcon.icns ]; then
+    cp AppIcon.icns GuitarApp.app/Contents/Resources/AppIcon.icns
+fi
+
 cat > GuitarApp.app/Contents/Info.plist << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -38,6 +43,8 @@ cat > GuitarApp.app/Contents/Info.plist << 'PLIST'
     <string>13.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
 </dict>
 </plist>
 PLIST

@@ -91,10 +91,11 @@ Apple Frameworks  (AVFoundation, Accelerate)
 | 0 | Project scaffold | Compilable skeleton | ✅ Done |
 | 1 | Audio engine core | Import, play, time-stretch (no UI) | ✅ Done |
 | 2 | Loop region engine | Sample-accurate looping (no UI) | ✅ Done |
-| 3 | Playable app | Import a song, see waveform, play/pause, seek, change speed | 🔲 Next |
-| 4 | Loop markers UI | Drag loop markers, toggle loop on/off | 🔲 Pending |
-| 5 | Metronome & BPM | Click track, auto BPM detect, syncs to playback speed | 🔲 Pending |
-| 6 | Polish & distribution | Release build, .app bundle, .dmg | 🔲 Pending |
+| 2.5 | Home screen | Project grid, persistence, back navigation | ✅ Done |
+| 3 | Playable app | Import a song, see waveform, play/pause, seek, change speed | ✅ Done |
+| 4 | Loop markers UI | Drag loop markers, toggle loop on/off | ✅ Done |
+| 5 | Metronome & BPM | Click track, auto BPM detect, syncs to playback speed | ✅ Done |
+| 6 | Polish & distribution | Release build, .app bundle, .dmg | ✅ Done |
 
 ## Distribution
 
