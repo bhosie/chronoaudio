@@ -41,14 +41,18 @@ struct ContentView: View {
 
             Divider()
 
-            // Bar/beat ruler
+            // Bar/beat ruler — tracks the same visible window as the waveform
             if playerVM.track != nil {
                 RulerView(
                     currentTime: playerVM.playbackState.currentTime,
                     trackDuration: playerVM.track?.duration ?? 0,
                     bpm: bpm,
                     beatsPerBar: beatsPerBar,
-                    beatUnit: beatUnit
+                    beatUnit: beatUnit,
+                    viewStart: waveformVM.viewStart,
+                    viewEnd: waveformVM.viewEnd > 0
+                        ? waveformVM.viewEnd
+                        : (playerVM.track?.duration ?? 0)
                 )
                 .padding(.horizontal, 12)
             }

@@ -15,6 +15,9 @@ struct WaveformView: View {
     /// Which element the current drag is targeting (resolved on gesture start).
     @State private var activeDrag: DragTarget = .seek
 
+    /// Accumulated magnification while a pinch gesture is live.
+    @State private var liveMagnification: CGFloat = 1.0
+
     /// Hit-test radius in points for snapping to a marker.
     private let markerHitRadius: CGFloat = 14
 
@@ -27,7 +30,7 @@ struct WaveformView: View {
                         WaveformRenderer.draw(
                             context: ctx,
                             size: size,
-                            samples: waveformVM.waveformSamples,
+                            samples: waveformVM.visibleSamples,
                             playheadPosition: waveformVM.playheadPosition,
                             loopInPosition: waveformVM.loopInPosition,
                             loopOutPosition: waveformVM.loopOutPosition,
@@ -41,7 +44,20 @@ struct WaveformView: View {
                 if isLoadingWaveform {
                     WaveformLoadingView()
                 }
+
+                // Zoom indicator — shown briefly when zoomed in
+                if waveformVM.zoomFactor > 1.01 {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            ZoomBadge(zoom: waveformVM.zoomFactor)
+                                .padding(8)
+                        }
+                    }
+                }
             }
+            // MARK: Drag gesture (seek / loop marker drag)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
@@ -54,19 +70,51 @@ struct WaveformView: View {
                             activeDrag = resolveDragTarget(x: x, width: width)
                         }
 
+                        // Convert view-fraction → audio seconds via the visible window.
                         let fraction = Double(x / width).clamped(to: 0...1)
-                        guard let duration = playerVM.track?.duration else { return }
+                        let audioTime = waveformVM.audioSeconds(fromViewFraction: fraction)
 
                         switch activeDrag {
                         case .loopIn:
-                            playerVM.setLoopIn(fraction * duration)
+                            playerVM.setLoopIn(audioTime)
                         case .loopOut:
-                            playerVM.setLoopOut(fraction * duration)
+                            playerVM.setLoopOut(audioTime)
                         case .seek:
-                            playerVM.seek(to: fraction * duration)
+                            playerVM.seek(to: audioTime)
                         }
                     }
             )
+            // MARK: Pinch-to-zoom
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        // `value` is the cumulative scale since gesture began.
+                        // We apply the delta relative to the last known value.
+                        let delta = Double(value / liveMagnification)
+                        liveMagnification = value
+                        // Anchor zoom on the centre of the view (in audio seconds).
+                        let anchorFrac = 0.5
+                        let anchorSec = waveformVM.audioSeconds(fromViewFraction: anchorFrac)
+                        waveformVM.adjustZoom(factor: delta, anchorSeconds: anchorSec)
+                    }
+                    .onEnded { _ in
+                        liveMagnification = 1.0
+                    }
+            )
+            // Double-tap to reset zoom
+            .onTapGesture(count: 2) {
+                waveformVM.resetZoom()
+            }
+            // MARK: Cmd+/Cmd- keyboard zoom (via AppCommands menu)
+            .onReceive(NotificationCenter.default.publisher(for: .zoomInRequested)) { _ in
+                waveformVM.adjustZoom(factor: 2.0)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .zoomOutRequested)) { _ in
+                waveformVM.adjustZoom(factor: 0.5)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .zoomResetRequested)) { _ in
+                waveformVM.resetZoom()
+            }
         }
         .frame(minHeight: 120)
         .cornerRadius(8)
@@ -90,6 +138,22 @@ struct WaveformView: View {
         if abs(x - inX) <= markerHitRadius  { return .loopIn  }
         if abs(x - outX) <= markerHitRadius { return .loopOut }
         return .seek
+    }
+}
+
+// MARK: - Zoom badge
+
+private struct ZoomBadge: View {
+    let zoom: Double
+
+    var body: some View {
+        Text(String(format: "%.1f×", zoom))
+            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            .foregroundColor(.white.opacity(0.8))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Color.black.opacity(0.55))
+            .clipShape(Capsule())
     }
 }
 
@@ -146,3 +210,4 @@ private extension Double {
         min(max(self, range.lowerBound), range.upperBound)
     }
 }
+

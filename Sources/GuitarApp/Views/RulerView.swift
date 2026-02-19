@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A horizontal ruler that shows bars and beat subdivisions across the track duration.
+/// A horizontal ruler that shows bars and beat subdivisions across the *visible* time window.
 /// Bar numbers are drawn above major tick lines; beat subdivisions are shorter ticks.
 /// A needle marks the current playhead position.
 ///
@@ -16,12 +16,18 @@ struct RulerView: View {
     let beatsPerBar: Int
     /// Beat unit: 4 = quarter note, 8 = eighth note. Determines how long one beat lasts.
     let beatUnit: Int
+    /// Left edge of the visible waveform window, in audio-file seconds.
+    let viewStart: Double
+    /// Right edge of the visible waveform window, in audio-file seconds.
+    let viewEnd: Double
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { _ in
             Canvas { ctx, size in
                 guard size.width > 0, trackDuration > 0, bpm > 0 else { return }
-                drawRuler(context: ctx, size: size)
+                let windowDuration = viewEnd - viewStart
+                guard windowDuration > 0 else { return }
+                drawRuler(context: ctx, size: size, windowDuration: windowDuration)
             }
         }
         .frame(height: 28)
@@ -30,25 +36,33 @@ struct RulerView: View {
 
     // MARK: - Drawing
 
-    private func drawRuler(context: GraphicsContext, size: CGSize) {
+    private func drawRuler(context: GraphicsContext, size: CGSize, windowDuration: Double) {
         // BPM is always in quarter notes. Scale by (4 / beatUnit) so that e.g.
         // 6/8 at 120 BPM has eighth-note beats that are 0.25s long (not 0.5s).
         // beatUnit=4 → scale 1.0; beatUnit=8 → scale 0.5 (eighth note is half a quarter note).
         let secondsPerBeat = 60.0 / bpm * (4.0 / Double(max(beatUnit, 1)))
         let secondsPerBar  = secondsPerBeat * Double(beatsPerBar)
-        let totalBars = Int(ceil(trackDuration / secondsPerBar))
 
-        // How many pixels does one second of audio occupy?
-        let pixelsPerSecond = size.width / trackDuration
+        // How many pixels does one second of the *visible window* occupy?
+        let pixelsPerSecond = size.width / windowDuration
+
+        // Helper: converts an audio-file time to an x position within this view.
+        func xFor(t: Double) -> CGFloat {
+            CGFloat((t - viewStart) * pixelsPerSecond)
+        }
 
         // --- Beat subdivision ticks ---
-        let totalBeats = Int(ceil(trackDuration / secondsPerBeat))
-        for beat in 0...totalBeats {
+        // Find the first beat that falls at or after viewStart.
+        let firstBeatIndex = Int(floor(viewStart / secondsPerBeat))
+        let lastBeatIndex  = Int(ceil(viewEnd   / secondsPerBeat))
+
+        for beat in firstBeatIndex...max(firstBeatIndex, lastBeatIndex) {
             let t = Double(beat) * secondsPerBeat
-            guard t <= trackDuration else { break }
-            let x = t * pixelsPerSecond
+            guard t >= viewStart - 0.001, t <= viewEnd + 0.001 else { continue }
+            let x = xFor(t: t)
+            guard x >= -1, x <= size.width + 1 else { continue }
+
             let isBeatOne = beat % beatsPerBar == 0
-            // Beat-one ticks are taller; subdivision ticks are shorter
             let tickH: CGFloat = isBeatOne ? size.height : size.height * 0.35
             let tickColor = isBeatOne
                 ? Color.white.opacity(0.25)
@@ -61,15 +75,20 @@ struct RulerView: View {
         }
 
         // --- Bar number labels ---
-        // Only draw a label when there's enough horizontal space (avoid crowding).
+        // Only draw a label when there's enough horizontal space.
         let barWidthPx = secondsPerBar * pixelsPerSecond
-        let labelEvery = max(1, Int(ceil(40.0 / barWidthPx))) // skip labels if bars are < 40px wide
+        let labelEvery = max(1, Int(ceil(40.0 / barWidthPx)))
 
-        for bar in 0...totalBars {
+        let firstBarIndex = Int(floor(viewStart / secondsPerBar))
+        let lastBarIndex  = Int(ceil(viewEnd   / secondsPerBar))
+
+        for bar in firstBarIndex...max(firstBarIndex, lastBarIndex) {
             guard bar % labelEvery == 0 else { continue }
             let t = Double(bar) * secondsPerBar
-            guard t <= trackDuration else { break }
-            let x = t * pixelsPerSecond
+            guard t <= trackDuration + 0.001 else { break }
+            guard t >= viewStart - secondsPerBar, t <= viewEnd + secondsPerBar else { continue }
+            let x = xFor(t: t)
+            guard x >= -barWidthPx, x <= size.width + barWidthPx else { continue }
 
             let label = "\(bar + 1)"
             let resolved = context.resolve(Text(label)
@@ -77,25 +96,26 @@ struct RulerView: View {
                 .foregroundColor(Color.white.opacity(0.45)))
             let textSize = resolved.measure(in: size)
 
-            // Left-align from the tick, but clamp so last label doesn't overflow
             let labelX = min(x + 2, size.width - textSize.width - 2)
+            guard labelX >= -textSize.width else { continue }
             context.draw(resolved, at: CGPoint(x: labelX, y: 4), anchor: .topLeading)
         }
 
         // --- Playhead needle ---
-        guard trackDuration > 0 else { return }
-        let headX = (currentTime / trackDuration) * size.width
-        var needlePath = Path()
-        needlePath.move(to: CGPoint(x: headX, y: 0))
-        needlePath.addLine(to: CGPoint(x: headX, y: size.height))
-        context.stroke(needlePath, with: .color(.white.opacity(0.85)), lineWidth: 1.5)
+        let headX = xFor(t: currentTime)
+        // Only draw if the playhead is within the visible window.
+        if headX >= 0, headX <= size.width {
+            var needlePath = Path()
+            needlePath.move(to: CGPoint(x: headX, y: 0))
+            needlePath.addLine(to: CGPoint(x: headX, y: size.height))
+            context.stroke(needlePath, with: .color(.white.opacity(0.85)), lineWidth: 1.5)
 
-        // Small triangle pointer at the top
-        var triangle = Path()
-        triangle.move(to:    CGPoint(x: headX,     y: 7))
-        triangle.addLine(to: CGPoint(x: headX - 4, y: 0))
-        triangle.addLine(to: CGPoint(x: headX + 4, y: 0))
-        triangle.closeSubpath()
-        context.fill(triangle, with: .color(.white.opacity(0.9)))
+            var triangle = Path()
+            triangle.move(to:    CGPoint(x: headX,     y: 7))
+            triangle.addLine(to: CGPoint(x: headX - 4, y: 0))
+            triangle.addLine(to: CGPoint(x: headX + 4, y: 0))
+            triangle.closeSubpath()
+            context.fill(triangle, with: .color(.white.opacity(0.9)))
+        }
     }
 }
