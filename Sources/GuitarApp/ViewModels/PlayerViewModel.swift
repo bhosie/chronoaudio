@@ -65,4 +65,57 @@ final class PlayerViewModel: ObservableObject {
         if case .playing = playbackState.status { return true }
         return false
     }
+
+    // MARK: - Loop control
+
+    func setLoopIn(_ time: TimeInterval) {
+        guard let track = track else { return }
+        let outPoint = playbackState.loopRegion?.outPoint ?? track.duration
+        if let region = LoopRegion.validated(inPoint: time, outPoint: outPoint, trackDuration: track.duration) {
+            playbackState.loopRegion = region
+            if region.isEnabled {
+                audioEngine.updateLoopRegion(region)
+            }
+        }
+    }
+
+    func setLoopOut(_ time: TimeInterval) {
+        guard let track = track else { return }
+        let inPoint = playbackState.loopRegion?.inPoint ?? 0
+        if let region = LoopRegion.validated(inPoint: inPoint, outPoint: time, trackDuration: track.duration) {
+            playbackState.loopRegion = region
+            if region.isEnabled {
+                audioEngine.updateLoopRegion(region)
+            }
+        }
+    }
+
+    func enableLoop() {
+        guard let track = track else { return }
+        // Use existing region or default to full track
+        let region = playbackState.loopRegion ?? LoopRegion(
+            inPoint: 0,
+            outPoint: track.duration,
+            isEnabled: true
+        )
+        let enabled = LoopRegion(inPoint: region.inPoint, outPoint: region.outPoint, isEnabled: true)
+        playbackState.loopRegion = enabled
+        audioEngine.enableLoop(region: enabled)
+    }
+
+    func disableLoop() {
+        if var region = playbackState.loopRegion {
+            region.isEnabled = false
+            playbackState.loopRegion = region
+        }
+        audioEngine.disableLoop()
+    }
+
+    func toggleLoop() {
+        if audioEngine.loopController.isLooping {
+            disableLoop()
+        } else {
+            enableLoop()
+        }
+    }
 }
