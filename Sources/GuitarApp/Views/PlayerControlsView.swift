@@ -215,12 +215,13 @@ struct PlayerControlsView: View {
         playerVM.audioEngine.loopController.isLooping
     }
 
-    /// Parse bpmText → clamp → update bpm binding and re-sync the text field.
+    /// Parse bpmText → clamp → update bpm binding, re-sync the text field, and drop focus.
     private func commitBPMText() {
         let parsed = Double(bpmText.trimmingCharacters(in: .whitespaces)) ?? bpm
         let clamped = parsed.clamped(to: 40...300)
         bpm = clamped
         bpmText = "\(Int(clamped))"
+        bpmFocused = false
     }
 }
 
