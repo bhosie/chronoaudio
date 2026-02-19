@@ -3,62 +3,57 @@ import Accelerate
 
 /// Plays a click track through the shared AVAudioEngine.
 ///
-/// Click scheduling strategy:
-///   - A dedicated AVAudioPlayerNode is attached to the shared engine.
-///   - When started, we schedule a series of short click buffers at precise
-///     sample offsets so beats land exactly on time regardless of playback speed.
-///   - We re-schedule lookahead clicks on a Timer so the buffer never runs dry.
-///   - BPM and volume can be changed on-the-fly; a change reschedules from the
-///     next beat boundary.
+/// The clickNode is attached to the engine by AudioEngine.setupGraph() before
+/// engine.start() is ever called. MetronomeEngine never modifies the audio graph.
 final class MetronomeEngine {
 
     // MARK: - State
 
     private let engine: AVAudioEngine
-    private let clickNode = AVAudioPlayerNode()
-    private var isAttached = false
+    private let clickNode: AVAudioPlayerNode
 
     private(set) var isRunning = false
     var bpm: Double = 120 { didSet { if isRunning { restart() } } }
     var volume: Float = 0.8 { didSet { clickNode.volume = volume } }
-    var playbackRate: Float = 1.0  // mirrors AudioEngine rate; affects click interval
+    var playbackRate: Float = 1.0
 
-    // How many beats to pre-schedule ahead of "now"
     private let lookaheadBeats = 8
     private var scheduledUpToSampleTime: AVAudioFramePosition = 0
     private var schedulerTimer: Timer?
+    private let scheduleQueue = DispatchQueue(label: "com.guitarapp.metronome", qos: .userInteractive)
 
-    // Cached click buffers (accent on beat 1, normal for other beats)
     private var accentBuffer: AVAudioPCMBuffer?
     private var normalBuffer: AVAudioPCMBuffer?
     private var clickFormat: AVAudioFormat?
 
-    // Beat counter for accenting beat 1 in the time signature
     private var beatIndex: Int = 0
     var beatsPerBar: Int = 4
 
     // MARK: - Init
 
-    init(engine: AVAudioEngine) {
+    init(engine: AVAudioEngine, clickNode: AVAudioPlayerNode) {
         self.engine = engine
+        self.clickNode = clickNode
     }
 
     // MARK: - Public API
 
     func start(bpm: Double, beatsPerBar: Int, playbackRate: Float) {
+        guard engine.isRunning else { return }
+
         self.bpm = bpm
         self.beatsPerBar = beatsPerBar
         self.playbackRate = playbackRate
         self.beatIndex = 0
+        self.scheduledUpToSampleTime = 0
 
-        attachIfNeeded()
         buildClickBuffers()
 
         clickNode.volume = volume
         clickNode.play()
         isRunning = true
 
-        scheduleBeats()
+        scheduleQueue.async { [weak self] in self?.scheduleBeats() }
         startSchedulerTimer()
     }
 
@@ -72,7 +67,7 @@ final class MetronomeEngine {
     }
 
     func updateBPM(_ newBPM: Double) {
-        bpm = newBPM  // didSet calls restart() if running
+        bpm = newBPM
     }
 
     func updatePlaybackRate(_ rate: Float) {
@@ -90,33 +85,40 @@ final class MetronomeEngine {
         start(bpm: savedBPM, beatsPerBar: savedBeats, playbackRate: savedRate)
     }
 
-    private func attachIfNeeded() {
-        guard !isAttached else { return }
-        engine.attach(clickNode)
-        engine.connect(clickNode, to: engine.mainMixerNode, format: nil)
-        isAttached = true
-    }
-
-    // MARK: - Beat scheduling
-
-    /// Schedule the next `lookaheadBeats` worth of clicks starting from
-    /// `scheduledUpToSampleTime` (or "now" if not started yet).
     private func scheduleBeats() {
         guard let format = clickFormat,
               let accentBuf = accentBuffer,
               let normalBuf = normalBuffer else { return }
 
-        // Effective BPM accounting for playback rate (slower rate = wider beat interval)
         let effectiveBPS = bpm / 60.0 * Double(playbackRate)
+        guard effectiveBPS > 0 else { return }
         let framesPerBeat = AVAudioFramePosition(format.sampleRate / effectiveBPS)
 
-        // Anchor to the node's current sample time if we haven't started yet
         if scheduledUpToSampleTime == 0 {
-            if let nodeTime = clickNode.lastRenderTime {
-                scheduledUpToSampleTime = nodeTime.sampleTime + framesPerBeat
-            } else {
-                scheduledUpToSampleTime = framesPerBeat
+            // We cannot use engine.outputNode.lastRenderTime.sampleTime as the
+            // anchor because it reflects the last completed render cycle, which
+            // can be several seconds behind wall-clock time when the engine has
+            // been running but idle (no audio scheduled). Scheduling relative to
+            // that stale timestamp means the first N beats are already in the
+            // past and get silently dropped, causing a multi-second delay before
+            // the first audible click.
+            //
+            // Instead, anchor off the current host time by converting it to a
+            // sample time via extrapolateTime(fromAnchor:) using the output
+            // node's most recent render timestamp as the reference frame. Then
+            // add a small fixed offset (~100ms) to give the scheduler time to
+            // queue the buffer before the hardware reaches that timestamp.
+            guard let anchorTime = engine.outputNode.lastRenderTime else { return }
+            let nowHostTime = mach_absolute_time()
+            let nowAVTime = AVAudioTime(hostTime: nowHostTime)
+            guard let nowSampleTime = nowAVTime.extrapolateTime(fromAnchor: anchorTime) else {
+                // Fallback: anchor directly off lastRenderTime.
+                let startOffsetFrames = AVAudioFramePosition(format.sampleRate * 0.1)
+                scheduledUpToSampleTime = anchorTime.sampleTime + startOffsetFrames
+                return
             }
+            let startOffsetFrames = AVAudioFramePosition(format.sampleRate * 0.1)
+            scheduledUpToSampleTime = nowSampleTime.sampleTime + startOffsetFrames
         }
 
         for _ in 0 ..< lookaheadBeats {
@@ -130,17 +132,18 @@ final class MetronomeEngine {
 
     private func startSchedulerTimer() {
         schedulerTimer?.invalidate()
-        // Refresh every ~200 ms — well within the lookahead window at any sensible BPM
         schedulerTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            self?.scheduleBeats()
+            guard let self else { return }
+            self.scheduleQueue.async { self.scheduleBeats() }
         }
     }
 
-    // MARK: - Click buffer synthesis
-
-    /// Synthesise short sinusoidal click buffers for accent (beat 1) and normal beats.
     private func buildClickBuffers() {
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1) else { return }
+        // Use the clickNode's actual output format so channel counts match.
+        let outputFormat = clickNode.outputFormat(forBus: 0)
+        let sampleRate = outputFormat.sampleRate > 0 ? outputFormat.sampleRate : 44100
+        let channelCount = outputFormat.channelCount > 0 ? outputFormat.channelCount : 2
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: channelCount) else { return }
         clickFormat = format
         accentBuffer = makeClickBuffer(format: format, frequency: 1200, durationMs: 12, amplitude: 0.9)
         normalBuffer = makeClickBuffer(format: format, frequency: 800,  durationMs: 10, amplitude: 0.6)
@@ -153,12 +156,10 @@ final class MetronomeEngine {
         let frameCount = AVAudioFrameCount(format.sampleRate * durationMs / 1000.0)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return nil }
         buffer.frameLength = frameCount
-
         let channelData = buffer.floatChannelData![0]
         let sr = format.sampleRate
         for i in 0 ..< Int(frameCount) {
             let t = Double(i) / sr
-            // Sine with exponential decay envelope
             let envelope = exp(-t * 200.0)
             let sine = sin(2.0 * Double.pi * frequency * t)
             channelData[i] = Float(amplitude) * Float(envelope * sine)

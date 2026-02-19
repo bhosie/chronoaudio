@@ -6,6 +6,8 @@ final class AudioEngine {
     private(set) var engine = AVAudioEngine()
     private(set) var playerNode = AVAudioPlayerNode()
     private(set) var timePitchNode = AVAudioUnitTimePitch()
+    /// Pre-wired in setupGraph() so MetronomeEngine never touches the graph after start.
+    let clickNode = AVAudioPlayerNode()
 
     private(set) var audioFile: AVAudioFile?
     private(set) var currentTrack: AudioTrack?
@@ -33,9 +35,11 @@ final class AudioEngine {
     private func setupGraph() {
         engine.attach(playerNode)
         engine.attach(timePitchNode)
+        engine.attach(clickNode)
 
         engine.connect(playerNode, to: timePitchNode, format: nil)
         engine.connect(timePitchNode, to: engine.mainMixerNode, format: nil)
+        engine.connect(clickNode, to: engine.mainMixerNode, format: nil)
 
         timePitchNode.pitch = 0.0
         timePitchNode.rate = 1.0

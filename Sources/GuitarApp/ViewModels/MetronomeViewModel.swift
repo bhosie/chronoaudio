@@ -18,7 +18,7 @@ final class MetronomeViewModel: ObservableObject {
     private(set) var playbackRate: Float = 1.0
 
     init(audioEngine: AudioEngine) {
-        self.metronomeEngine = MetronomeEngine(engine: audioEngine.engine)
+        self.metronomeEngine = MetronomeEngine(engine: audioEngine.engine, clickNode: audioEngine.clickNode)
     }
 
     // MARK: - Transport sync
@@ -33,9 +33,9 @@ final class MetronomeViewModel: ObservableObject {
         }
     }
 
-    /// Called when playback pauses or stops.
     func onPlaybackStopped() {
         metronomeEngine.stop()
+        // Intentionally does NOT set isRunning = false.
     }
 
     /// Called when BPM or time signature changes (while playing or not).

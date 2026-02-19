@@ -5,7 +5,7 @@ struct ContentView: View {
     let onBack: (Project) -> Void
 
     @EnvironmentObject private var projectStore: ProjectStore
-    @StateObject private var playerVM = PlayerViewModel()
+    @StateObject private var playerVM: PlayerViewModel
     @StateObject private var waveformVM = WaveformViewModel()
 
     @State private var resolvedURL: URL?
@@ -22,9 +22,8 @@ struct ContentView: View {
     init(project: Project, onBack: @escaping (Project) -> Void) {
         self.project = project
         self.onBack = onBack
-        // Can't reference @StateObject playerVM here, so create a temporary
-        // AudioEngine just for MetronomeViewModel's init; the real one is in playerVM.
-        // We fix this up in onAppear by re-pointing via playerVM.audioEngine.
+        // Both ViewModels share the same AudioEngine so the metronome
+        // click node is pre-wired into the AVAudioEngine graph before start().
         let vm = PlayerViewModel()
         _playerVM = StateObject(wrappedValue: vm)
         _metronomeVM = StateObject(wrappedValue: MetronomeViewModel(audioEngine: vm.audioEngine))
