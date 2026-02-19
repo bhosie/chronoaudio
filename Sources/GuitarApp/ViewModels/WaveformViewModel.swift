@@ -7,6 +7,7 @@ final class WaveformViewModel: ObservableObject {
     @Published var playheadPosition: CGFloat = 0
     @Published var loopInPosition: CGFloat = 0
     @Published var loopOutPosition: CGFloat = 1
+    @Published var loopEnabled: Bool = false
 
     private let sampler = WaveformSampler()
     private var cancellables = Set<AnyCancellable>()
@@ -38,7 +39,7 @@ final class WaveformViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Update normalized playhead position
+        // Update normalized playhead position, loop positions, and loop enabled state.
         playerVM.$playbackState
             .receive(on: RunLoop.main)
             .sink { [weak self] state in
@@ -52,9 +53,11 @@ final class WaveformViewModel: ObservableObject {
                 if let region = state.loopRegion {
                     self.loopInPosition = CGFloat(region.inPoint / track.duration)
                     self.loopOutPosition = CGFloat(region.outPoint / track.duration)
+                    self.loopEnabled = region.isEnabled
                 } else {
                     self.loopInPosition = 0
                     self.loopOutPosition = 1
+                    self.loopEnabled = false
                 }
             }
             .store(in: &cancellables)

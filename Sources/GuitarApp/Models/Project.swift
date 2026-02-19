@@ -21,6 +21,10 @@ struct Project: Codable, Identifiable, Equatable {
     var playbackSpeed: Float                // 0.25...1.0
     var lastPlayheadPosition: TimeInterval
 
+    // Ruler / tempo (nil = user hasn't set one; UI shows a default)
+    var bpm: Double?
+    var timeSignatureNumerator: Int?
+
     // MARK: - Init
 
     init(
@@ -35,7 +39,9 @@ struct Project: Codable, Identifiable, Equatable {
         loopOutPoint: TimeInterval? = nil,
         loopEnabled: Bool = false,
         playbackSpeed: Float = 1.0,
-        lastPlayheadPosition: TimeInterval = 0
+        lastPlayheadPosition: TimeInterval = 0,
+        bpm: Double? = nil,
+        timeSignatureNumerator: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -49,6 +55,8 @@ struct Project: Codable, Identifiable, Equatable {
         self.loopEnabled = loopEnabled
         self.playbackSpeed = playbackSpeed
         self.lastPlayheadPosition = lastPlayheadPosition
+        self.bpm = bpm
+        self.timeSignatureNumerator = timeSignatureNumerator
     }
 
     static func == (lhs: Project, rhs: Project) -> Bool {

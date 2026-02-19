@@ -14,6 +14,10 @@ final class AudioEngine {
     private var _currentTime: TimeInterval = 0
     var currentTime: TimeInterval { _currentTime }
 
+    /// The audio-file time that was current when playerNode.play() was last called.
+    /// computeCurrentTime() adds this offset to the raw sample-since-play-start count.
+    private var _playStartTime: TimeInterval = 0
+
     // Called on main thread when currentTime updates
     var onTimeUpdate: ((TimeInterval) -> Void)?
     var onPlaybackEnded: (() -> Void)?
@@ -194,6 +198,9 @@ final class AudioEngine {
 
     private func startTimer() {
         stopTimer()
+        // Snapshot the seek offset at the moment playback begins so
+        // computeCurrentTime() can add it to the raw sample-since-play-start count.
+        _playStartTime = _currentTime
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             let t = self.computeCurrentTime()
@@ -218,15 +225,18 @@ final class AudioEngine {
         let sampleRate = playerTime.sampleRate
         guard sampleTime >= 0 && sampleRate > 0 else { return _currentTime }
 
+        // sampleTime counts samples rendered since playerNode.play() was last called —
+        // it always starts from 0 regardless of seek position. Add _playStartTime to
+        // get the correct audio-file position.
+        let elapsedSincePlay = Double(sampleTime) / sampleRate
+
         if loopController.isLooping, let region = loopController.region {
-            // Map sample time into loop region
             let loopDuration = region.outPoint - region.inPoint
             guard loopDuration > 0 else { return _currentTime }
-            let elapsed = Double(sampleTime) / sampleRate
-            let positionInLoop = elapsed.truncatingRemainder(dividingBy: loopDuration)
+            let positionInLoop = elapsedSincePlay.truncatingRemainder(dividingBy: loopDuration)
             return region.inPoint + positionInLoop
         }
 
-        return min(Double(sampleTime) / sampleRate, track.duration)
+        return min(_playStartTime + elapsedSincePlay, track.duration)
     }
 }

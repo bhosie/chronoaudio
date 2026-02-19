@@ -12,6 +12,10 @@ struct ContentView: View {
     @State private var bookmarkAccessStarted = false
     @State private var restoredState = false
 
+    // Ruler state — persisted to project on back
+    @State private var bpm: Double = 120
+    @State private var beatsPerBar: Int = 4
+
     var body: some View {
         VStack(spacing: 0) {
             // Transport bar with back navigation
@@ -23,14 +27,31 @@ struct ContentView: View {
 
             Divider()
 
+            // Bar/beat ruler
+            if playerVM.track != nil {
+                RulerView(
+                    currentTime: playerVM.playbackState.currentTime,
+                    trackDuration: playerVM.track?.duration ?? 0,
+                    bpm: bpm,
+                    beatsPerBar: beatsPerBar
+                )
+                .padding(.horizontal, 12)
+            }
+
             // Waveform
             WaveformView(waveformVM: waveformVM, playerVM: playerVM)
-                .padding(12)
+                .padding(.horizontal, 12)
+                .padding(.top, playerVM.track != nil ? 0 : 12)
+                .padding(.bottom, 12)
 
             Divider()
 
-            // Play/pause + speed
-            PlayerControlsView(playerVM: playerVM)
+            // Play/pause + loop + BPM + time sig + speed
+            PlayerControlsView(
+                playerVM: playerVM,
+                bpm: $bpm,
+                beatsPerBar: $beatsPerBar
+            )
         }
         .frame(minWidth: 800, minHeight: 500)
         .preferredColorScheme(.dark)
@@ -84,13 +105,15 @@ struct ContentView: View {
                 playerVM.enableLoop()
             }
         }
+        if let savedBPM = project.bpm { bpm = savedBPM }
+        if let savedSig = project.timeSignatureNumerator { beatsPerBar = savedSig }
     }
 
     // MARK: - Back / Save
 
     private func handleBack() {
         playerVM.pause()
-        let snapshot = playerVM.snapshotProject(from: project)
+        let snapshot = playerVM.snapshotProject(from: project, bpm: bpm, beatsPerBar: beatsPerBar)
         teardown()
         onBack(snapshot)
     }

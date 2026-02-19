@@ -153,7 +153,7 @@ final class PlayerViewModel: ObservableObject {
 
     /// Pure value transform: copies the source Project and fills in current playback state.
     /// No I/O, no side effects. The caller is responsible for persisting the result.
-    func snapshotProject(from source: Project) -> Project {
+    func snapshotProject(from source: Project, bpm: Double, beatsPerBar: Int) -> Project {
         var updated = source
         updated.lastPlayheadPosition = playbackState.currentTime
         updated.playbackSpeed = playbackState.playbackRate
@@ -166,6 +166,8 @@ final class PlayerViewModel: ObservableObject {
             updated.loopOutPoint = nil
             updated.loopEnabled = false
         }
+        updated.bpm = bpm
+        updated.timeSignatureNumerator = beatsPerBar
         return updated
     }
 }
