@@ -7,6 +7,10 @@ struct PlayerControlsView: View {
     @ObservedObject var metronomeVM: MetronomeViewModel
     let onDetectBPM: () -> Void
 
+    /// Local string backing the BPM text field so edits don't fight the binding.
+    @State private var bpmText: String = "120"
+    @FocusState private var bpmFocused: Bool
+
     var body: some View {
         HStack(spacing: 20) {
             // Play / Pause button
@@ -52,26 +56,42 @@ struct PlayerControlsView: View {
                 Text("BPM")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                HStack(spacing: 4) {
-                    Button { bpm = max(40, bpm - 1) } label: {
+                HStack(spacing: 6) {
+                    Button {
+                        let newBPM = (bpm - 1).clamped(to: 40...300)
+                        bpm = newBPM
+                        bpmText = "\(Int(newBPM))"
+                    } label: {
                         Image(systemName: "minus")
                             .font(.system(size: 10, weight: .medium))
+                            .frame(width: 16, height: 16)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(.secondary)
 
-                    TextField("BPM", value: $bpm, format: .number)
-                        .textFieldStyle(.plain)
+                    TextField("", text: $bpmText)
+                        .textFieldStyle(.roundedBorder)
                         .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .multilineTextAlignment(.center)
-                        .frame(width: 46)
-                        .onChange(of: bpm) { newVal in
-                            bpm = newVal.clamped(to: 40...300)
+                        .frame(width: 52)
+                        .focused($bpmFocused)
+                        .onSubmit { commitBPMText() }
+                        .onChange(of: bpm) { newBPM in
+                            if !bpmFocused {
+                                bpmText = "\(Int(newBPM))"
+                            }
                         }
 
-                    Button { bpm = min(300, bpm + 1) } label: {
+                    Button {
+                        let newBPM = (bpm + 1).clamped(to: 40...300)
+                        bpm = newBPM
+                        bpmText = "\(Int(newBPM))"
+                    } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 10, weight: .medium))
+                            .frame(width: 16, height: 16)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(.secondary)
@@ -193,6 +213,14 @@ struct PlayerControlsView: View {
 
     private var isLooping: Bool {
         playerVM.audioEngine.loopController.isLooping
+    }
+
+    /// Parse bpmText → clamp → update bpm binding and re-sync the text field.
+    private func commitBPMText() {
+        let parsed = Double(bpmText.trimmingCharacters(in: .whitespaces)) ?? bpm
+        let clamped = parsed.clamped(to: 40...300)
+        bpm = clamped
+        bpmText = "\(Int(clamped))"
     }
 }
 
