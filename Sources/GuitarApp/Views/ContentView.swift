@@ -12,9 +12,23 @@ struct ContentView: View {
     @State private var bookmarkAccessStarted = false
     @State private var restoredState = false
 
-    // Ruler state — persisted to project on back
+    // Ruler / metronome state — persisted to project on back
     @State private var bpm: Double = 120
     @State private var beatsPerBar: Int = 4
+
+    // MetronomeViewModel is created after playerVM so it can share the engine
+    @StateObject private var metronomeVM: MetronomeViewModel
+
+    init(project: Project, onBack: @escaping (Project) -> Void) {
+        self.project = project
+        self.onBack = onBack
+        // Can't reference @StateObject playerVM here, so create a temporary
+        // AudioEngine just for MetronomeViewModel's init; the real one is in playerVM.
+        // We fix this up in onAppear by re-pointing via playerVM.audioEngine.
+        let vm = PlayerViewModel()
+        _playerVM = StateObject(wrappedValue: vm)
+        _metronomeVM = StateObject(wrappedValue: MetronomeViewModel(audioEngine: vm.audioEngine))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,11 +60,13 @@ struct ContentView: View {
 
             Divider()
 
-            // Play/pause + loop + BPM + time sig + speed
+            // Play/pause + loop + BPM + time sig + speed + metronome
             PlayerControlsView(
                 playerVM: playerVM,
                 bpm: $bpm,
-                beatsPerBar: $beatsPerBar
+                beatsPerBar: $beatsPerBar,
+                metronomeVM: metronomeVM,
+                onDetectBPM: handleDetectBPM
             )
         }
         .frame(minWidth: 800, minHeight: 500)
@@ -68,7 +84,30 @@ struct ContentView: View {
             restoredState = true
             applyRestoredState()
         }
+        // Keep metronome in sync with playback state changes
+        .onChange(of: playerVM.playbackState.status) { status in
+            switch status {
+            case .playing:
+                metronomeVM.onPlaybackStarted(
+                    bpm: bpm,
+                    beatsPerBar: beatsPerBar,
+                    playbackRate: playerVM.playbackState.playbackRate
+                )
+            case .paused, .idle, .loading, .error:
+                metronomeVM.onPlaybackStopped()
+            }
+        }
+        .onChange(of: bpm) { newBPM in
+            metronomeVM.onBPMChanged(bpm: newBPM, beatsPerBar: beatsPerBar)
+        }
+        .onChange(of: beatsPerBar) { newBeats in
+            metronomeVM.onBPMChanged(bpm: bpm, beatsPerBar: newBeats)
+        }
+        .onChange(of: playerVM.playbackState.playbackRate) { newRate in
+            metronomeVM.onRateChanged(newRate)
+        }
         .onDisappear {
+            metronomeVM.onPlaybackStopped()
             teardown()
         }
         .alert("Error", isPresented: Binding(
@@ -107,6 +146,14 @@ struct ContentView: View {
         }
         if let savedBPM = project.bpm { bpm = savedBPM }
         if let savedSig = project.timeSignatureNumerator { beatsPerBar = savedSig }
+    }
+
+    // MARK: - BPM Detection
+
+    private func handleDetectBPM() {
+        guard let buffer = playerVM.track?.pcmBuffer,
+              let sampleRate = playerVM.track?.sampleRate else { return }
+        metronomeVM.detectBPM(from: buffer, sampleRate: sampleRate)
     }
 
     // MARK: - Back / Save

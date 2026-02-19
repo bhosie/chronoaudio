@@ -3,7 +3,7 @@ import Foundation
 
 final class AudioEngine {
 
-    private let engine = AVAudioEngine()
+    private(set) var engine = AVAudioEngine()
     private(set) var playerNode = AVAudioPlayerNode()
     private(set) var timePitchNode = AVAudioUnitTimePitch()
 

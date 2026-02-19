@@ -4,6 +4,8 @@ struct PlayerControlsView: View {
     @ObservedObject var playerVM: PlayerViewModel
     @Binding var bpm: Double
     @Binding var beatsPerBar: Int
+    @ObservedObject var metronomeVM: MetronomeViewModel
+    let onDetectBPM: () -> Void
 
     var body: some View {
         HStack(spacing: 20) {
@@ -154,6 +156,24 @@ struct PlayerControlsView: View {
             }
             .disabled(playerVM.track == nil)
             .frame(maxWidth: 240)
+
+            Divider()
+                .frame(height: 28)
+
+            // Metronome panel
+            MetronomePanel(
+                metronomeVM: metronomeVM,
+                bpm: bpm,
+                beatsPerBar: beatsPerBar,
+                playbackRate: playerVM.playbackState.playbackRate
+            ) { value in
+                if value < 0 {
+                    onDetectBPM()
+                } else {
+                    bpm = value
+                }
+            }
+            .disabled(playerVM.track == nil)
 
             Spacer()
 
