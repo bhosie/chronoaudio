@@ -12,21 +12,28 @@ final class WaveformViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     func observe(_ playerVM: PlayerViewModel) {
-        // Re-sample waveform when track changes
+        // Re-sample waveform when track (or its pcmBuffer) changes.
+        // Phase 1: track arrives with pcmBuffer=nil → clear samples (show empty waveform).
+        // Phase 2: track is republished with pcmBuffer filled → sample and display.
         playerVM.$track
             .receive(on: RunLoop.main)
             .sink { [weak self] track in
                 guard let self else { return }
-                if let track = track, let buffer = track.pcmBuffer {
-                    Task { [weak self] in
-                        guard let self else { return }
-                        let samples = await self.sampler.sample(buffer: buffer, targetCount: 2048)
-                        await MainActor.run {
-                            self.waveformSamples = samples
-                        }
-                    }
-                } else {
+                guard let track = track else {
                     self.waveformSamples = []
+                    return
+                }
+                guard let buffer = track.pcmBuffer else {
+                    // Buffer not ready yet — clear so the canvas shows an empty state.
+                    self.waveformSamples = []
+                    return
+                }
+                Task { [weak self] in
+                    guard let self else { return }
+                    let samples = await self.sampler.sample(buffer: buffer, targetCount: 2048)
+                    await MainActor.run {
+                        self.waveformSamples = samples
+                    }
                 }
             }
             .store(in: &cancellables)

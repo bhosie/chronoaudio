@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import AVFoundation
 
 @MainActor
 final class PlayerViewModel: ObservableObject {
@@ -30,13 +31,42 @@ final class PlayerViewModel: ObservableObject {
             isImporting = true
             errorMessage = nil
             do {
+                // Phase 1 (fast): metadata + engine setup only — no PCM decode.
+                // Sets `track` immediately so the player view is interactive right away.
                 let loadedTrack = try audioEngine.prepare(with: url)
                 track = loadedTrack
                 playbackState = PlaybackState()
+                isImporting = false
+
+                // Phase 2 (async background): decode full PCM buffer for waveform.
+                // Runs on a detached task so it never blocks the main thread.
+                let frameCount = loadedTrack.frameCount
+                let sampleRate = loadedTrack.sampleRate
+                let channelCount = AVAudioChannelCount(loadedTrack.channelCount)
+                let pcmBuffer = try await Task.detached(priority: .utility) {
+                    try AudioFileLoader().loadPCMBuffer(
+                        for: url,
+                        frameCount: frameCount,
+                        sampleRate: sampleRate,
+                        channelCount: channelCount
+                    )
+                }.value
+
+                // Publish the filled buffer back to the track on the MainActor.
+                if track?.url == url {
+                    track = AudioTrack(
+                        url: loadedTrack.url,
+                        duration: loadedTrack.duration,
+                        sampleRate: loadedTrack.sampleRate,
+                        channelCount: loadedTrack.channelCount,
+                        frameCount: loadedTrack.frameCount,
+                        pcmBuffer: pcmBuffer
+                    )
+                }
             } catch {
                 errorMessage = error.localizedDescription
+                isImporting = false
             }
-            isImporting = false
         }
     }
 
@@ -117,5 +147,25 @@ final class PlayerViewModel: ObservableObject {
         } else {
             enableLoop()
         }
+    }
+
+    // MARK: - Project snapshot
+
+    /// Pure value transform: copies the source Project and fills in current playback state.
+    /// No I/O, no side effects. The caller is responsible for persisting the result.
+    func snapshotProject(from source: Project) -> Project {
+        var updated = source
+        updated.lastPlayheadPosition = playbackState.currentTime
+        updated.playbackSpeed = playbackState.playbackRate
+        if let region = playbackState.loopRegion {
+            updated.loopInPoint = region.inPoint
+            updated.loopOutPoint = region.outPoint
+            updated.loopEnabled = region.isEnabled
+        } else {
+            updated.loopInPoint = nil
+            updated.loopOutPoint = nil
+            updated.loopEnabled = false
+        }
+        return updated
     }
 }

@@ -1,9 +1,12 @@
 import SwiftUI
 
 struct GuitarAppApp: App {
+    @StateObject private var projectStore = ProjectStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(projectStore)
         }
         .commands {
             AppCommands()

@@ -1,17 +1,24 @@
 import SwiftUI
 
 struct ContentView: View {
+    let project: Project
+    let onBack: (Project) -> Void
+
+    @EnvironmentObject private var projectStore: ProjectStore
     @StateObject private var playerVM = PlayerViewModel()
     @StateObject private var waveformVM = WaveformViewModel()
 
-    @State private var isFileImporterPresented = false
+    @State private var resolvedURL: URL?
+    @State private var bookmarkAccessStarted = false
+    @State private var restoredState = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top bar: file open + time display
+            // Transport bar with back navigation
             TransportBar(
                 playerVM: playerVM,
-                isFileImporterPresented: $isFileImporterPresented
+                projectName: project.name,
+                onBack: handleBack
             )
 
             Divider()
@@ -30,29 +37,18 @@ struct ContentView: View {
         .onAppear {
             waveformVM.observe(playerVM)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openFileRequested)) { _ in
-            isFileImporterPresented = true
+        .task {
+            await restoreProject()
         }
-        .fileImporter(
-            isPresented: $isFileImporterPresented,
-            allowedContentTypes: [.mp3, .aiff, .wav, .audio],
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                guard let url = urls.first else { return }
-                // Need to access the security-scoped resource
-                let accessing = url.startAccessingSecurityScopedResource()
-                playerVM.importAudio(url: url)
-                if accessing {
-                    // Keep access open; release after load
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                        url.stopAccessingSecurityScopedResource()
-                    }
-                }
-            case .failure(let error):
-                playerVM.errorMessage = error.localizedDescription
-            }
+        .onChange(of: playerVM.track) { newTrack in
+            // Apply saved state once — on the first publish (fast path, pcmBuffer may be nil).
+            // The second publish (buffer filled) must not re-seek or re-apply speed.
+            guard newTrack != nil, !restoredState else { return }
+            restoredState = true
+            applyRestoredState()
+        }
+        .onDisappear {
+            teardown()
         }
         .alert("Error", isPresented: Binding(
             get: { playerVM.errorMessage != nil },
@@ -61,6 +57,48 @@ struct ContentView: View {
             Button("OK") { playerVM.errorMessage = nil }
         } message: {
             Text(playerVM.errorMessage ?? "")
+        }
+    }
+
+    // MARK: - Restore
+
+    private func restoreProject() async {
+        guard let url = projectStore.resolveURL(for: project) else {
+            playerVM.errorMessage = "Audio file not found. The file may have been moved or deleted."
+            return
+        }
+        resolvedURL = url
+        bookmarkAccessStarted = url.startAccessingSecurityScopedResource()
+        playerVM.importAudio(url: url)
+    }
+
+    private func applyRestoredState() {
+        playerVM.setPlaybackRate(project.playbackSpeed)
+        if project.lastPlayheadPosition > 0 {
+            playerVM.seek(to: project.lastPlayheadPosition)
+        }
+        if let inPt = project.loopInPoint, let outPt = project.loopOutPoint {
+            playerVM.setLoopIn(inPt)
+            playerVM.setLoopOut(outPt)
+            if project.loopEnabled {
+                playerVM.enableLoop()
+            }
+        }
+    }
+
+    // MARK: - Back / Save
+
+    private func handleBack() {
+        playerVM.pause()
+        let snapshot = playerVM.snapshotProject(from: project)
+        teardown()
+        onBack(snapshot)
+    }
+
+    private func teardown() {
+        if bookmarkAccessStarted {
+            resolvedURL?.stopAccessingSecurityScopedResource()
+            bookmarkAccessStarted = false
         }
     }
 }

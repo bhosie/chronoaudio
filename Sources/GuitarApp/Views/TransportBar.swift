@@ -2,30 +2,31 @@ import SwiftUI
 
 struct TransportBar: View {
     @ObservedObject var playerVM: PlayerViewModel
-    @Binding var isFileImporterPresented: Bool
+    let projectName: String
+    let onBack: () -> Void
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Open File button
-            Button {
-                isFileImporterPresented = true
-            } label: {
-                Label("Open File", systemImage: "folder.badge.plus")
+        HStack(spacing: 12) {
+            // Back button
+            Button(action: onBack) {
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.left")
+                    Text("Projects")
+                }
+                .font(.system(size: 13))
             }
-            .keyboardShortcut("o", modifiers: .command)
+            .buttonStyle(.plain)
+            .foregroundColor(.accentColor)
 
-            // Track name
-            if let track = playerVM.track {
-                Text(track.url.deletingPathExtension().lastPathComponent)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("No file loaded")
-                    .foregroundColor(Color.secondary.opacity(0.5))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            Divider()
+                .frame(height: 18)
+
+            // Project name
+            Text(projectName)
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             // Time display
             HStack(spacing: 4) {
