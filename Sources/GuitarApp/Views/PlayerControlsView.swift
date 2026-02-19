@@ -103,7 +103,7 @@ struct PlayerControlsView: View {
             Divider()
                 .frame(height: 28)
 
-            // Speed slider
+            // Speed slider + anchor buttons
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("Speed")
@@ -111,9 +111,8 @@ struct PlayerControlsView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                     Text("\(Int(playerVM.playbackState.playbackRate * 100))%")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary)
                 }
 
                 Slider(
@@ -124,8 +123,36 @@ struct PlayerControlsView: View {
                     in: 0.25...1.0,
                     step: 0.05
                 )
-                .disabled(playerVM.track == nil)
+
+                // Anchor buttons — tap to snap to a preset, highlight when active
+                HStack(spacing: 6) {
+                    ForEach([25, 50, 75, 100], id: \.self) { pct in
+                        let rate = Float(pct) / 100.0
+                        let isActive = abs(playerVM.playbackState.playbackRate - rate) < 0.01
+                        Button {
+                            playerVM.setPlaybackRate(rate)
+                        } label: {
+                            Text("\(pct)%")
+                                .font(.system(size: 10, weight: isActive ? .semibold : .regular,
+                                              design: .monospaced))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(isActive
+                                              ? Color(red: 0.35, green: 0.65, blue: 1.0).opacity(0.20)
+                                              : Color.white.opacity(0.07))
+                                )
+                                .foregroundColor(isActive
+                                                 ? Color(red: 0.35, green: 0.65, blue: 1.0)
+                                                 : .secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
             }
+            .disabled(playerVM.track == nil)
             .frame(maxWidth: 240)
 
             Spacer()
