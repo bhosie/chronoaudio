@@ -5,5 +5,5 @@
 DerivedData/
 .DS_Store
 .claude/
-GuitarApp.app/
+*.app/
 *.dmg
