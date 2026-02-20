@@ -1,10 +1,10 @@
 import SwiftUI
 
 extension Notification.Name {
-    static let openFileRequested = Notification.Name("com.guitarapp.openFileRequested")
-    static let zoomInRequested   = Notification.Name("com.guitarapp.zoomInRequested")
-    static let zoomOutRequested  = Notification.Name("com.guitarapp.zoomOutRequested")
-    static let zoomResetRequested = Notification.Name("com.guitarapp.zoomResetRequested")
+    static let openFileRequested = Notification.Name("com.chronoaudio.openFileRequested")
+    static let zoomInRequested   = Notification.Name("com.chronoaudio.zoomInRequested")
+    static let zoomOutRequested  = Notification.Name("com.chronoaudio.zoomOutRequested")
+    static let zoomResetRequested = Notification.Name("com.chronoaudio.zoomResetRequested")
 }
 
 struct AppCommands: Commands {

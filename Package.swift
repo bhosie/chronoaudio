@@ -2,20 +2,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "GuitarApp",
+    name: "ChronoAudio",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "GuitarApp",
-            path: "Sources/GuitarApp",
+            name: "ChronoAudio",
+            path: "Sources/ChronoAudio",
             resources: [
                 .copy("Resources")
             ]
         ),
         .testTarget(
-            name: "GuitarAppTests",
-            dependencies: ["GuitarApp"],
-            path: "Tests/GuitarAppTests"
+            name: "ChronoAudioTests",
+            dependencies: ["ChronoAudio"],
+            path: "Tests/ChronoAudioTests"
         )
     ]
 )

@@ -1,5 +1,5 @@
 #!/usr/bin/swift
-// Generates GuitarApp.icns — a waveform icon.
+// Generates ChronoAudio.icns — a waveform icon.
 // Run: swift make_icon.swift
 
 import Cocoa

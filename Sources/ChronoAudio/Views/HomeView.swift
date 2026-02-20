@@ -16,7 +16,7 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 // Header
                 HStack {
-                    Text("GuitarApp")
+                    Text("Chrono Audio")
                         .font(.largeTitle.bold())
                         .foregroundColor(.primary)
                     Spacer()

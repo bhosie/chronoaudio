@@ -5,8 +5,8 @@ set -e
 cd "$(dirname "$0")"
 
 VERSION="1.0.0"
-DMG_NAME="GuitarApp-${VERSION}.dmg"
-VOL_NAME="GuitarApp"
+DMG_NAME="ChronoAudio-${VERSION}.dmg"
+VOL_NAME="Chrono Audio"
 STAGING_DIR="dmg_staging"
 
 # 1. Build the .app bundle
@@ -17,7 +17,7 @@ echo "→ Building .app bundle..."
 echo "→ Staging..."
 rm -rf "$STAGING_DIR"
 mkdir "$STAGING_DIR"
-cp -r GuitarApp.app "$STAGING_DIR/"
+cp -r ChronoAudio.app "$STAGING_DIR/"
 # Symlink to /Applications for drag-install UX
 ln -s /Applications "$STAGING_DIR/Applications"
 
@@ -40,4 +40,4 @@ echo ""
 echo "✓ Created: $DMG_NAME"
 echo ""
 echo "To distribute: share $DMG_NAME"
-echo "First-launch: right-click GuitarApp.app → Open (Gatekeeper bypass)"
+echo "First-launch: right-click ChronoAudio.app → Open (Gatekeeper bypass)"

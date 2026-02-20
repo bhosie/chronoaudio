@@ -21,7 +21,7 @@ final class ProjectStore: ObservableObject {
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first!
-        let dir = appSupport.appendingPathComponent("GuitarApp", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("ChronoAudio", isDirectory: true)
         self.fileURL = dir.appendingPathComponent("projects.json")
     }
 

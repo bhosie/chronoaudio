@@ -6,17 +6,23 @@
     <string>Chrono Audio</string>
     <key>CFBundleName</key>
     <string>ChronoAudio</string>
+    <key>CFBundleExecutable</key>
+    <string>ChronoAudio</string>
     <key>CFBundleIdentifier</key>
     <string>com.chronoaudio.app</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
-    <key>com.apple.security.app-sandbox</key>
-    <false/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
 </dict>
 </plist>

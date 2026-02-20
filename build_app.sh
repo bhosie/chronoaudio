@@ -5,32 +5,32 @@ cd "$(dirname "$0")"
 echo "→ Building release binary..."
 swift build -c release
 
-echo "→ Assembling GuitarApp.app bundle..."
-rm -rf GuitarApp.app
-mkdir -p GuitarApp.app/Contents/MacOS
-mkdir -p GuitarApp.app/Contents/Resources
+echo "→ Assembling ChronoAudio.app bundle..."
+rm -rf ChronoAudio.app
+mkdir -p ChronoAudio.app/Contents/MacOS
+mkdir -p ChronoAudio.app/Contents/Resources
 
-cp .build/release/GuitarApp GuitarApp.app/Contents/MacOS/GuitarApp
-cp -r .build/release/GuitarApp_GuitarApp.bundle GuitarApp.app/Contents/Resources/
+cp .build/release/ChronoAudio ChronoAudio.app/Contents/MacOS/ChronoAudio
+cp -r .build/release/ChronoAudio_ChronoAudio.bundle ChronoAudio.app/Contents/Resources/
 
 # App icon
 if [ -f AppIcon.icns ]; then
-    cp AppIcon.icns GuitarApp.app/Contents/Resources/AppIcon.icns
+    cp AppIcon.icns ChronoAudio.app/Contents/Resources/AppIcon.icns
 fi
 
-cat > GuitarApp.app/Contents/Info.plist << 'PLIST'
+cat > ChronoAudio.app/Contents/Info.plist << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleDisplayName</key>
-    <string>GuitarApp</string>
+    <string>Chrono Audio</string>
     <key>CFBundleName</key>
-    <string>GuitarApp</string>
+    <string>ChronoAudio</string>
     <key>CFBundleExecutable</key>
-    <string>GuitarApp</string>
+    <string>ChronoAudio</string>
     <key>CFBundleIdentifier</key>
-    <string>com.guitarapp.app</string>
+    <string>com.chronoaudio.app</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
@@ -50,5 +50,5 @@ cat > GuitarApp.app/Contents/Info.plist << 'PLIST'
 PLIST
 
 echo "→ Done! Launch with:"
-echo "   open GuitarApp.app"
-echo "   # or double-click GuitarApp.app in Finder"
+echo "   open ChronoAudio.app"
+echo "   # or double-click ChronoAudio.app in Finder"

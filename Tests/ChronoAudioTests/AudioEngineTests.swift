@@ -1,6 +1,6 @@
 import XCTest
 import AVFoundation
-@testable import GuitarApp
+@testable import ChronoAudio
 
 final class AudioEngineTests: XCTestCase {
 

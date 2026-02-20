@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct GuitarAppApp: App {
+struct ChronoAudioApp: App {
     @StateObject private var projectStore = ProjectStore()
 
     var body: some Scene {

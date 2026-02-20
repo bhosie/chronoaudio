@@ -1,4 +1,4 @@
-# GuitarApp
+# ChronoAudio
 
 A native macOS app for learning and playing along with songs on guitar or other instruments. Import any audio file, slow it down without changing pitch, loop the tricky sections, and stay in time with a built-in click track.
 
@@ -19,7 +19,7 @@ A native macOS app for learning and playing along with songs on guitar or other 
 
 ```bash
 git clone <repo-url>
-cd guitar_app
+cd chrono_audio
 swift build
 ```
 
@@ -47,7 +47,7 @@ Or go to **System Settings → Privacy & Security** and click **Open Anyway** af
 ## Project Structure
 
 ```
-Sources/GuitarApp/
+Sources/ChronoAudio/
 ├── App/                    # App entry point and menu bar commands
 ├── Audio/                  # AVAudioEngine graph, file loading, loop and time-stretch control
 ├── BeatDetection/          # FFT-based BPM detection using Accelerate/vDSP
@@ -57,7 +57,7 @@ Sources/GuitarApp/
 ├── Waveform/               # Waveform sampling and rendering
 └── Utilities/              # Time formatting helpers
 
-Tests/GuitarAppTests/
+Tests/ChronoAudioTests/
 ├── Fixtures/               # TestAudioGenerator for synthetic test audio
 └── *Tests.swift            # XCTest unit tests per module
 ```

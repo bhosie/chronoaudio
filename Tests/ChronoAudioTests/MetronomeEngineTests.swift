@@ -1,5 +1,5 @@
 import XCTest
-@testable import GuitarApp
+@testable import ChronoAudio
 
 /// Unit tests for MetronomeEngine beat-timing math.
 ///
