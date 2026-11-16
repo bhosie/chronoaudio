@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - Drag target resolved at gesture start
 
@@ -115,6 +116,17 @@ struct WaveformView: View {
             .onReceive(NotificationCenter.default.publisher(for: .zoomResetRequested)) { _ in
                 waveformVM.resetZoom()
             }
+            // MARK: Mouse wheel / trackpad scroll to zoom, anchored on the pointer
+            .overlay(
+                ScrollWheelZoomArea { deltaY, xFraction in
+                    guard playerVM.track != nil else { return }
+                    let sensitivity = 0.015
+                    let factor = pow(1.0 + sensitivity, Double(deltaY))
+                    let anchorSeconds = waveformVM.audioSeconds(fromViewFraction: Double(xFraction))
+                    waveformVM.adjustZoom(factor: factor, anchorSeconds: anchorSeconds)
+                }
+                .allowsHitTesting(false)
+            )
         }
         .frame(minHeight: 120)
         .cornerRadius(8)
@@ -203,11 +215,73 @@ private struct WaveformLoadingView: View {
     }
 }
 
+// MARK: - Scroll wheel zoom
+
+/// Invisible overlay that installs a local NSEvent monitor for scroll-wheel events
+/// (mouse wheel and trackpad two-finger scroll) and reports the vertical delta plus
+/// the horizontal pointer position (as a 0–1 fraction of the view's width) while the
+/// pointer is over this view's bounds.
+///
+/// A local event monitor is used instead of overriding `scrollWheel(with:)` directly
+/// so this view can stay out of AppKit's hit-test chain (`allowsHitTesting(false)`)
+/// and avoid stealing mouseDown from the seek/loop-marker drag and pinch gestures
+/// layered on top of it.
+private struct ScrollWheelZoomArea: NSViewRepresentable {
+    let onScroll: (_ deltaY: CGFloat, _ xFraction: CGFloat) -> Void
+
+    func makeNSView(context: Context) -> MonitorView {
+        let view = MonitorView()
+        view.onScroll = onScroll
+        return view
+    }
+
+    func updateNSView(_ nsView: MonitorView, context: Context) {
+        nsView.onScroll = onScroll
+    }
+
+    final class MonitorView: NSView {
+        var onScroll: ((CGFloat, CGFloat) -> Void)?
+        private var monitor: Any?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            installMonitor()
+        }
+
+        private func installMonitor() {
+            removeMonitor()
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self, let window = self.window, event.window == window else { return event }
+                let locationInView = self.convert(event.locationInWindow, from: nil)
+                guard self.bounds.contains(locationInView), self.bounds.width > 0 else { return event }
+
+                let xFraction = (locationInView.x / self.bounds.width).clamped(to: 0...1)
+                self.onScroll?(event.scrollingDeltaY, xFraction)
+                return nil
+            }
+        }
+
+        private func removeMonitor() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+        }
+
+        deinit { removeMonitor() }
+    }
+}
+
 // MARK: - Helpers
 
 private extension Double {
     func clamped(to range: ClosedRange<Double>) -> Double {
         min(max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+private extension CGFloat {
+    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
