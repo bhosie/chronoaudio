@@ -14,6 +14,19 @@ struct PlayerControlsView: View {
 
     var body: some View {
         HStack(spacing: 20) {
+            // Back to start button
+            Button {
+                playerVM.backToStart()
+            } label: {
+                Image(systemName: "backward.end.fill")
+                    .font(.system(size: 20))
+                    .frame(width: 32, height: 44)
+            }
+            .buttonStyle(.plain)
+            .disabled(playerVM.track == nil)
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            .help(isLooping ? "Back to start of loop" : "Back to start of song")
+
             // Play / Pause button
             Button {
                 if playerVM.isPlaying {

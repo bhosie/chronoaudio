@@ -86,6 +86,17 @@ final class PlayerViewModel: ObservableObject {
         playbackState.currentTime = time
     }
 
+    /// Jump back to the start of the loop region if looping is on, otherwise
+    /// to the start of the song.
+    func backToStart() {
+        guard track != nil else { return }
+        if audioEngine.loopController.isLooping, let region = playbackState.loopRegion {
+            seek(to: region.inPoint)
+        } else {
+            seek(to: 0)
+        }
+    }
+
     func setPlaybackRate(_ rate: Float) {
         audioEngine.setRate(rate)
         playbackState.playbackRate = rate
