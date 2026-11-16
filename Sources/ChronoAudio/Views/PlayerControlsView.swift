@@ -60,6 +60,7 @@ struct PlayerControlsView: View {
             }
             .buttonStyle(.plain)
             .disabled(playerVM.track == nil)
+            .keyboardShortcut("/", modifiers: [])
             .help(isLooping ? "Disable loop" : "Enable loop")
 
             Divider()

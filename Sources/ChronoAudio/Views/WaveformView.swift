@@ -127,6 +127,24 @@ struct WaveformView: View {
                 }
                 .allowsHitTesting(false)
             )
+            // MARK: Up/Down arrow keyboard zoom — invisible buttons, no visible UI or menu item
+            .overlay(
+                HStack(spacing: 0) {
+                    Button {
+                        guard playerVM.track != nil else { return }
+                        waveformVM.adjustZoom(factor: 2.0)
+                    } label: { EmptyView() }
+                    .keyboardShortcut(.upArrow, modifiers: [])
+
+                    Button {
+                        guard playerVM.track != nil else { return }
+                        waveformVM.adjustZoom(factor: 0.5)
+                    } label: { EmptyView() }
+                    .keyboardShortcut(.downArrow, modifiers: [])
+                }
+                .frame(width: 0, height: 0)
+                .opacity(0)
+            )
         }
         .frame(minHeight: 120)
         .cornerRadius(8)
